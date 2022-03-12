@@ -13,7 +13,7 @@ use nom::{
   error::ParseError,
   multi::{many0, many1},
   sequence::delimited,
-  sequence::{pair, preceded, tuple},
+  sequence::{pair, preceded, tuple,terminated},
   IResult,
 };
 use std::collections::HashMap;
@@ -140,7 +140,7 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
     ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
     tuple((
       // name of the type/interface
-      recognize(pair(ws(alpha1), opt(ws(tag("="))))),
+      terminated(ws(alpha1), opt(ws(tag("=")))),
       delimited(
         ws(tag("{")),
         many1(
