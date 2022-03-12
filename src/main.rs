@@ -121,14 +121,6 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
         many1(
           // there can of course be many properties with respective types
           tuple((
-            // ws(
-            //   take_while(
-            //     alt(
-            //       alphanumeric0,
-            //       one_of("-_")
-            //     )
-            //   )
-            //   ),
             ws(label_identifier), // property name
             tag(":"),
             ws(recognize(pair(alphanumeric1, opt(tag("[]"))))), // property type
