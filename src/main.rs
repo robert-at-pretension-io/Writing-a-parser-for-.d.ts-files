@@ -5,15 +5,15 @@ use nom::{
   branch::alt,
   // character::is_alphanumeric
   bytes::complete::tag,
-  bytes::complete::{is_not, take_until},
+  bytes::complete::{ take_until},
   // see the "streaming/complete" paragraph lower for an explanation of these submodules
-  character::complete::{alpha0, alpha1, alphanumeric1, char, multispace0, one_of},
+  character::complete::{ alpha1, alphanumeric1,  multispace0},
   combinator::opt,
   combinator::recognize,
   error::ParseError,
   multi::{many0, many1},
   sequence::delimited,
-  sequence::{pair, preceded, terminated, tuple},
+  sequence::{pair, preceded, tuple},
   IResult,
 };
 use std::collections::HashMap;
@@ -41,7 +41,14 @@ fn main() {
 
     match fs::read_to_string(&filename) {
       Ok(unparsed) => {
-        type_file(&unparsed);
+        match type_file(&unparsed) {
+          Ok(parsed) => {
+            println!("{:?}", parsed);
+          }
+          Err(e) => {
+            println!("{:?}", e);
+          }
+        }
       }
       Err(err) => {
         println!("error attempting to read file:{:?}", err);
@@ -156,15 +163,15 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
   }
 }
 
-fn parse2(input: &str, parsers: &[fn(&str)]) {
-  println!("================");
-  println!("INPUT:'{}'", input);
+// fn parse2(input: &str, parsers: &[fn(&str)]) {
+//   println!("================");
+//   println!("INPUT:'{}'", input);
 
-  for (i, p) in parsers.iter().enumerate() {
-    p(input);
-    println!("Applying parser #{:?}:", i);
-    println!("----");
-  }
+//   for (i, p) in parsers.iter().enumerate() {
+//     p(input);
+//     println!("Applying parser #{:?}:", i);
+//     println!("----");
+//   }
 
-  println!("================");
-}
+//   println!("================");
+// }
