@@ -33,7 +33,7 @@ fn main() {
 
   loop {
     if prearranged_filename.is_none() {
-      println!("Enter a filename (or type exit to quit):");
+      println!("\nEnter a filename (or type exit to quit):");
       let mut filename = String::new();
       io::stdin()
         .read_line(&mut filename)
