@@ -6,3 +6,9 @@ interface Business {
 interface Organization {
   roles : String[];
 }
+
+type Employee = {
+  name: String;
+  role: String;
+  salary: number;
+};

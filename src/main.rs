@@ -5,9 +5,9 @@ use nom::{
   branch::alt,
   // character::is_alphanumeric
   bytes::complete::tag,
-  bytes::complete::{ take_until},
+  bytes::complete::take_until,
   // see the "streaming/complete" paragraph lower for an explanation of these submodules
-  character::complete::{ alpha1, alphanumeric1,  multispace0},
+  character::complete::{alpha1, alphanumeric1, multispace0},
   combinator::opt,
   combinator::recognize,
   error::ParseError,
@@ -20,6 +20,10 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 fn main() {
+  // get initial file name from the terminal argument
+  let args: Vec<String> = std::env::args().collect();
+  let mut prearranged_filename = args.get(1);
+
   println!("This folder has the following files: ");
   let paths = fs::read_dir("./").unwrap();
 
@@ -28,31 +32,38 @@ fn main() {
   }
 
   loop {
-    println!("Enter a filename (or type exit to quit):");
-    let mut filename = String::new();
-    io::stdin()
-      .read_line(&mut filename)
-      .expect("failed to readline");
-    filename = filename.trim_end().to_string();
+    if prearranged_filename.is_none() {
+      println!("Enter a filename (or type exit to quit):");
+      let mut filename = String::new();
+      io::stdin()
+        .read_line(&mut filename)
+        .expect("failed to readline");
+      filename = filename.trim_end().to_string();
 
-    if filename.contains("exit") {
-      break;
+      if filename.contains("exit") {
+        break;
+      }
+
+      read_and_parse_string(&filename);
+    } else {
+      read_and_parse_string(prearranged_filename.unwrap());
+      prearranged_filename = None; // we don't want to read the same file again
     }
+  }
+}
 
-    match fs::read_to_string(&filename) {
-      Ok(unparsed) => {
-        match type_file(&unparsed) {
-          Ok(parsed) => {
-            println!("{:?}", parsed);
-          }
-          Err(e) => {
-            println!("{:?}", e);
-          }
-        }
+fn read_and_parse_string(filename: &str) {
+  match fs::read_to_string(&filename) {
+    Ok(unparsed) => match type_file(&unparsed) {
+      Ok(parsed) => {
+        println!("{:?}", parsed);
       }
-      Err(err) => {
-        println!("error attempting to read file:{:?}", err);
+      Err(e) => {
+        println!("{:?}", e);
       }
+    },
+    Err(err) => {
+      println!("error attempting to read file:{:?}", err);
     }
   }
 }
@@ -102,10 +113,16 @@ where
 fn type_file(file: &str) -> IResult<&str, Vec<Type>> {
   let result = many0(
     //hypothetically, the file could contain no interfaces or types
-    preceded(
-      take_until("interface"), //
-      interface_block,
-    ),
+    alt((
+      preceded(
+        take_until("interface"), //
+        interface_block,
+      ),
+      preceded(
+        take_until("type"), //
+        interface_block,
+      ),
+    )),
   )(file)?;
   Ok(result)
 }
@@ -122,7 +139,8 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
   let result: IResult<&str, (&str, Vec<(&str, &str, &str, Option<&str>)>)> = preceded(
     ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
     tuple((
-      ws(alpha1), // name of the type/interface
+      // name of the type/interface
+      recognize(pair(ws(alpha1), opt(ws(tag("="))))),
       delimited(
         ws(tag("{")),
         many1(
@@ -144,16 +162,11 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
   match result {
     Ok(tupled) => {
       let (rest, (name, prop_type_hash)) = tupled.clone();
-
-      println!("{:?}", tupled);
-
       my_type.add_name(name);
       for x in prop_type_hash.into_iter() {
         let (prop, _, type_name, _) = x;
         my_type.add_property(prop, type_name);
       }
-      println!("The resultant type is:\n{:?}", my_type);
-
       Ok((rest, my_type))
     }
     Err(err) => {
