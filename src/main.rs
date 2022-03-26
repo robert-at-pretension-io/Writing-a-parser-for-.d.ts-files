@@ -93,13 +93,6 @@ impl Type {
   }
 }
 
-// fn unquote(input: &str)  {
-//        let result =  delimited(char('"'), is_not("\""), char('"'))(input);
-
-//   if let Ok(str) = result {
-//     println!("result: {:?}", str)
-//   }
-// }
 
 fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
   inner: F,
