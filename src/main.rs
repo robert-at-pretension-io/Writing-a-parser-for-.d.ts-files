@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs;
 use std::io;
 
@@ -57,6 +58,8 @@ fn read_and_parse_string(filename: &str) {
     Ok(unparsed) => match type_file(&unparsed) {
       Ok(parsed) => {
         println!("{:?}", parsed);
+        let (_, types) = parsed;
+        
       }
       Err(e) => {
         println!("{:?}", e);
@@ -68,6 +71,23 @@ fn read_and_parse_string(filename: &str) {
   }
 }
 
+
+struct Graph {
+  // nodes: Vec<str>,
+  // edges: Vec<string>,
+  all_types: HashSet<Type>,
+  elemental_types: HashSet<Type>,
+  primative_types: HashSet<Type>,
+  composite_types: HashSet<Type>,
+}
+
+impl Graph {
+  /// This function takes in a list of elemental types and returns if the type is a primitive type
+  fn is_primative(my_type : &Type) -> bool {
+    todo!()
+  }
+}
+
 #[derive(Debug)]
 struct Type {
   name: String,
@@ -75,6 +95,7 @@ struct Type {
 }
 
 impl Type {
+
   fn new() -> Type {
     Type {
       name: String::from(""),
