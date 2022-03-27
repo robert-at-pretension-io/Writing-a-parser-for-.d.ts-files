@@ -77,14 +77,21 @@ struct Graph {
   // edges: Vec<string>,
   all_types: HashSet<Type>,
   elemental_types: HashSet<Type>,
+  /// These types are used to determine if the node is primative or not. Elemental types are types like "string", "number", etc. They are the basic building blocks of the rest of the application. These will be initialized by a configuration file that loads when the program loads.
   primative_types: HashSet<Type>,
   composite_types: HashSet<Type>,
 }
 
 impl Graph {
-  /// This function takes in a list of elemental types and returns if the type is a primitive type
+  fn init(filename : &str) -> Self {
+
+  }
+
+
+  /// This function takes in a type and returns if the type is a primitive type.
+  /// It does this by checking to see if the type is contained in the set of elemental_types
   fn is_primative(my_type : &Type) -> bool {
-    todo!()
+    // To implement this algorithm, we will need to check if my_type is con
   }
 }
 
