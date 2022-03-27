@@ -169,15 +169,3 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
   }
 }
 
-// fn parse2(input: &str, parsers: &[fn(&str)]) {
-//   println!("================");
-//   println!("INPUT:'{}'", input);
-
-//   for (i, p) in parsers.iter().enumerate() {
-//     p(input);
-//     println!("Applying parser #{:?}:", i);
-//     println!("----");
-//   }
-
-//   println!("================");
-// }
