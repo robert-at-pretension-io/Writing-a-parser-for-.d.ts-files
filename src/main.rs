@@ -14,13 +14,13 @@ use nom::{
   error::ParseError,
   multi::{many0, many1},
   sequence::delimited,
-  sequence::{pair, preceded, tuple,terminated},
+  sequence::{pair, preceded, terminated, tuple},
   IResult,
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-fn main<'a>() {
+fn main() {
   // get initial file name from the terminal argument
   let args: Vec<String> = std::env::args().collect();
   let mut prearranged_filename = args.get(1);
@@ -39,40 +39,36 @@ fn main<'a>() {
       io::stdin()
         .read_line(&mut filename)
         .expect("failed to readline");
-      filename  = filename.trim_end().to_string().clone();
+      filename = filename.trim_end().to_string().clone();
 
       if filename.contains("exit") {
         break;
       }
-      let g: &'a mut Graph = Graph::init(filename.clone().as_str());
-      
+      let g = Graph::init(filename.clone().as_str());
     } else {
-      
       prearranged_filename = None; // we don't want to read the same file again
     }
   }
 }
 
-
-
 #[derive(Debug, Clone)]
-struct Graph<'a> {
-  edges: Vec<(Type<'a>, &'a Type<'a>)>,
-  elemental_types: HashSet<Type<'a>>,
+struct Graph {
+  edges: Vec<(String, String)>,
+  elemental_types: HashSet<Type>,
   /// These types are used to determine if the node is primative or not. Elemental types are types like "string", "number", etc. They are the basic building blocks of the rest of the application. These will be initialized by a configuration file that loads when the program loads.
-  primative_types: HashSet<Type<'a>>,
-  composite_types: HashSet<Type<'a>>,
+  primative_types: HashSet<Type>,
+  composite_types: HashSet<Type>,
 }
 
-impl<'a> Graph<'a> {
-  fn init(filename : & str) -> &mut Self {
+impl Graph {
+  fn init(filename: &str) -> Self {
     // we first read the contents of the file into a string which we will parse.
-    let contents = fs::read_to_string(filename).expect("Unable to read file").to_owned();
+    let contents = fs::read_to_string(filename)
+      .expect("Unable to read file")
+      .to_owned();
 
     // parse the contents
     let types = type_file(&contents);
-   
-
 
     let mut graph = Graph {
       edges: Vec::new(),
@@ -81,7 +77,6 @@ impl<'a> Graph<'a> {
       composite_types: HashSet::new(),
     };
 
-
     // we then iterate through the types and add them to the graph.
     for type_ in types.clone() {
       if Self::is_primative(&type_) {
@@ -89,7 +84,7 @@ impl<'a> Graph<'a> {
       } else {
         graph.composite_types.insert(type_.clone());
       }
-    };
+    }
 
     // we then iterate through the types and add the edges to the graph.
 
@@ -99,53 +94,46 @@ impl<'a> Graph<'a> {
     //   }
     // }
 
-    &mut graph
-
+    graph
   }
-
 
   /// This function takes in a type and returns if the type is a primitive type.
   /// It does this by checking to see if the type is contained in the set of elemental_types
-  fn is_primative(my_type : &Type) -> bool {
+  fn is_primative(my_type: &Type) -> bool {
     // To implement this algorithm, we will need to check if my_type is contained in the elemental_types set.
     todo!()
   }
 }
 
-#[derive(Debug, Clone,  PartialEq, Eq)]
-struct Type<'a> {
-  name: &'a str,
-  prop_type: HashMap<&'a str, &'a str>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Type {
+  name: String,
+  prop_type: HashMap<String, String>,
 }
 
-impl std::hash::Hash for Type<'_> {
+impl std::hash::Hash for Type {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
     self.name.hash(state);
   }
 }
-    
 
-
-impl<'a>  Type<'a> {
-
-  fn new() -> Type<'a> {
+impl Type {
+  fn new() -> Type {
     Type {
-      name: "",
-      prop_type: HashMap::<&'a str, &'a str>::new(),
+      name: String::from(""),
+      prop_type: HashMap::<String, String>::new(),
     }
   }
 
-
   /// This function takes in a vector of (property, type) and adds them to the type.
-  fn add_properties(&'a mut self, properties: HashMap<&'a str, &'a str>) {
+  fn add_properties(&mut self, properties: HashMap<String, String>) {
     self.prop_type = properties;
   }
 
-  fn add_name(&mut self, name: &'a str) {
-    self.name = name;
+  fn add_name(&mut self, name: &str) {
+    self.name = String::from(name);
   }
 }
-
 
 fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
   inner: F,
@@ -156,9 +144,7 @@ where
   delimited(multispace0, inner, multispace0)
 }
 ///Todo: look at imported types and recursively read those too
-fn type_file(file: &'static str) -> Vec<Type<'static>> {
-  
-  
+fn type_file(file: &str) -> Vec<Type> {
   let result = many0(
     //hypothetically, the file could contain no interfaces or types
     alt((
@@ -172,7 +158,6 @@ fn type_file(file: &'static str) -> Vec<Type<'static>> {
       ),
     )),
   )(file);
-  
 
   // need to look inside result to make sure it is a success
   match result {
@@ -217,28 +202,24 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
     )),
   )(input);
 
-  let my_type : &mut Type = &mut Type::new();
+  let my_type: &mut Type = &mut Type::new();
 
   match result {
     Ok(tupled) => {
       let (rest, (name, prop_type_hash)) = tupled.clone();
       my_type.add_name(name);
-      
       // get all the properties and their types
       // grow two vectors by looping through prop_type_hash
-      let mut prop_names = Vec::<&str>::new();
-      let mut prop_types = Vec::<&str>::new();
+      let mut prop_names = Vec::<String>::new();
+      let mut prop_types = Vec::<String>::new();
       for (prop, _, type_name, _) in prop_type_hash {
         prop_names.push(prop.into());
-        prop_types.push(type_name);
+        prop_types.push(String::from(type_name));
       }
 
-
       my_type.prop_type = prop_names.into_iter().zip(prop_types.into_iter()).collect();
-      
-      
 
-      Ok((rest,  my_type.to_owned()))
+      Ok((rest, my_type.to_owned()))
     }
     Err(err) => {
       println!("Awe shucks, we have an error: {:?}", err);
@@ -246,4 +227,3 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
     }
   }
 }
-
