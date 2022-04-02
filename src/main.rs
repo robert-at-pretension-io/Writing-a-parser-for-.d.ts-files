@@ -20,7 +20,7 @@ use nom::{
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-fn main() {
+fn main<'a>() {
   // get initial file name from the terminal argument
   let args: Vec<String> = std::env::args().collect();
   let mut prearranged_filename = args.get(1);
@@ -39,41 +39,25 @@ fn main() {
       io::stdin()
         .read_line(&mut filename)
         .expect("failed to readline");
-      filename = filename.trim_end().to_string();
+      filename  = filename.trim_end().to_string().clone();
 
       if filename.contains("exit") {
         break;
       }
-
-      read_and_parse_string(&filename);
+      let g: &'a mut Graph = Graph::init(filename.clone().as_str());
+      
     } else {
-      read_and_parse_string(prearranged_filename.unwrap());
+      
       prearranged_filename = None; // we don't want to read the same file again
     }
   }
 }
 
-fn read_and_parse_string(filename: &str) {
-  match fs::read_to_string(&filename) {
-    Ok(unparsed) => match type_file(&unparsed) {
-      Ok(parsed) => {
-        println!("{:?}", parsed);
-        let (_, types) = parsed;
-        
-      }
-      Err(e) => {
-        println!("{:?}", e);
-      }
-    },
-    Err(err) => {
-      println!("error attempting to read file:{:?}", err);
-    }
-  }
-}
 
 
+#[derive(Debug, Clone)]
 struct Graph<'a> {
-  edges: Vec<(&'a Type<'a>, &'a Type<'a>)>,
+  edges: Vec<(Type<'a>, &'a Type<'a>)>,
   elemental_types: HashSet<Type<'a>>,
   /// These types are used to determine if the node is primative or not. Elemental types are types like "string", "number", etc. They are the basic building blocks of the rest of the application. These will be initialized by a configuration file that loads when the program loads.
   primative_types: HashSet<Type<'a>>,
@@ -81,10 +65,15 @@ struct Graph<'a> {
 }
 
 impl<'a> Graph<'a> {
-  fn init(filename : &str) -> Self {
+  fn init(filename : & str) -> &mut Self {
     // we first read the contents of the file into a string which we will parse.
-    let contents = fs::read_to_string(filename).expect("Unable to read file");
-    let (_, types) = type_file(&contents).expect("Unable to parse file");
+    let contents = fs::read_to_string(filename).expect("Unable to read file").to_owned();
+
+    // parse the contents
+    let types = type_file(&contents);
+   
+
+
     let mut graph = Graph {
       edges: Vec::new(),
       elemental_types: HashSet::new(),
@@ -92,15 +81,25 @@ impl<'a> Graph<'a> {
       composite_types: HashSet::new(),
     };
 
-    types.iter().for_each(|t| {
-      if Self::is_primative(t) {
-        graph.primative_types.insert(t.clone());
-      } else {
-        graph.composite_types.insert(t.clone());
-      }
-    });
 
-    graph
+    // we then iterate through the types and add them to the graph.
+    for type_ in types.clone() {
+      if Self::is_primative(&type_) {
+        graph.primative_types.insert(type_.clone());
+      } else {
+        graph.composite_types.insert(type_.clone());
+      }
+    };
+
+    // we then iterate through the types and add the edges to the graph.
+
+    // for type_ in types {
+    //   for edge in type_.edges.iter() {
+    //     graph.edges.push((type_, edge));
+    //   }
+    // }
+
+    &mut graph
 
   }
 
@@ -113,11 +112,19 @@ impl<'a> Graph<'a> {
   }
 }
 
-#[derive(Debug, Clone,  PartialEq, Eq, std::hash::Hash)]
+#[derive(Debug, Clone,  PartialEq, Eq)]
 struct Type<'a> {
   name: &'a str,
   prop_type: HashMap<&'a str, &'a str>,
 }
+
+impl std::hash::Hash for Type<'_> {
+  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    self.name.hash(state);
+  }
+}
+    
+
 
 impl<'a>  Type<'a> {
 
@@ -127,15 +134,15 @@ impl<'a>  Type<'a> {
       prop_type: HashMap::<&'a str, &'a str>::new(),
     }
   }
-  /// This function doesn't check to see that the property is already inside the type.. This should conform to the rust standard
-  fn add_property(&'a mut self, property: &str, my_type: &str) {
-    self
-      .prop_type
-      .insert(&String::from(property), &String::from(my_type));
+
+
+  /// This function takes in a vector of (property, type) and adds them to the type.
+  fn add_properties(&'a mut self, properties: HashMap<&'a str, &'a str>) {
+    self.prop_type = properties;
   }
 
-  fn add_name(&mut self, name: &str) {
-    self.name = String::from(name);
+  fn add_name(&mut self, name: &'a str) {
+    self.name = name;
   }
 }
 
@@ -149,7 +156,9 @@ where
   delimited(multispace0, inner, multispace0)
 }
 ///Todo: look at imported types and recursively read those too
-fn type_file(file: &str) -> IResult<&str, Vec<Type>> {
+fn type_file(file: &'static str) -> Vec<Type<'static>> {
+  
+  
   let result = many0(
     //hypothetically, the file could contain no interfaces or types
     alt((
@@ -162,8 +171,20 @@ fn type_file(file: &str) -> IResult<&str, Vec<Type>> {
         interface_block,
       ),
     )),
-  )(file)?;
-  Ok(result)
+  )(file);
+  
+
+  // need to look inside result to make sure it is a success
+  match result {
+    Ok((_, types)) => {
+      // println!("{:?}", types);
+      types
+    }
+    Err(e) => {
+      println!("{:?}", e);
+      Vec::new()
+    }
+  }
 }
 
 fn label_identifier(input: &str) -> IResult<&str, &str> {
@@ -196,17 +217,28 @@ fn interface_block(input: &str) -> IResult<&str, Type> {
     )),
   )(input);
 
-  let mut my_type = Type::new();
+  let my_type : &mut Type = &mut Type::new();
 
   match result {
     Ok(tupled) => {
       let (rest, (name, prop_type_hash)) = tupled.clone();
       my_type.add_name(name);
-      for x in prop_type_hash.into_iter() {
-        let (prop, _, type_name, _) = x;
-        my_type.add_property(prop, type_name);
+      
+      // get all the properties and their types
+      // grow two vectors by looping through prop_type_hash
+      let mut prop_names = Vec::<&str>::new();
+      let mut prop_types = Vec::<&str>::new();
+      for (prop, _, type_name, _) in prop_type_hash {
+        prop_names.push(prop.into());
+        prop_types.push(type_name);
       }
-      Ok((rest, my_type))
+
+
+      my_type.prop_type = prop_names.into_iter().zip(prop_types.into_iter()).collect();
+      
+      
+
+      Ok((rest,  my_type.to_owned()))
     }
     Err(err) => {
       println!("Awe shucks, we have an error: {:?}", err);
