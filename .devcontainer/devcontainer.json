@@ -40,7 +40,13 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "rustc --version",
+	"postCreateCommand": 
+	[
+		"git config --global user.email 'robert@pretension.io'",
+		"git config --global user.name 'Robert Elliot Pahel-Short'",
+
+	]
+	,
 
 	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
 	"remoteUser": "vscode",
