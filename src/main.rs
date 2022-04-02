@@ -72,9 +72,9 @@ fn read_and_parse_string(filename: &str) {
 }
 
 
-struct Graph {
-  // nodes: Vec<str>,
-  // edges: Vec<string>,
+struct Graph<'a> {
+  edges: Vec<(&'a Type, &'a Type)>,
+  /// When the graph is built, we need to know which types are already in the graph. This is just used for the first pass of the algorithm. This will be separated into elemental_types and composite_types in the second phase of initialization.
   all_types: HashSet<Type>,
   elemental_types: HashSet<Type>,
   /// These types are used to determine if the node is primative or not. Elemental types are types like "string", "number", etc. They are the basic building blocks of the rest of the application. These will be initialized by a configuration file that loads when the program loads.
