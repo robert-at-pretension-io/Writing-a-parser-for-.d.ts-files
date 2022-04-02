@@ -73,17 +73,34 @@ fn read_and_parse_string(filename: &str) {
 
 
 struct Graph<'a> {
-  edges: Vec<(&'a Type, &'a Type)>,
-  /// When the graph is built, we need to know which types are already in the graph. This is just used for the first pass of the algorithm. This will be separated into elemental_types and composite_types in the second phase of initialization.
-  all_types: HashSet<Type>,
-  elemental_types: HashSet<Type>,
+  edges: Vec<(&'a Type<'a>, &'a Type<'a>)>,
+  elemental_types: HashSet<Type<'a>>,
   /// These types are used to determine if the node is primative or not. Elemental types are types like "string", "number", etc. They are the basic building blocks of the rest of the application. These will be initialized by a configuration file that loads when the program loads.
-  primative_types: HashSet<Type>,
-  composite_types: HashSet<Type>,
+  primative_types: HashSet<Type<'a>>,
+  composite_types: HashSet<Type<'a>>,
 }
 
-impl Graph {
+impl<'a> Graph<'a> {
   fn init(filename : &str) -> Self {
+    // we first read the contents of the file into a string which we will parse.
+    let contents = fs::read_to_string(filename).expect("Unable to read file");
+    let (_, types) = type_file(&contents).expect("Unable to parse file");
+    let mut graph = Graph {
+      edges: Vec::new(),
+      elemental_types: HashSet::new(),
+      primative_types: HashSet::new(),
+      composite_types: HashSet::new(),
+    };
+
+    types.iter().for_each(|t| {
+      if Self::is_primative(t) {
+        graph.primative_types.insert(t.clone());
+      } else {
+        graph.composite_types.insert(t.clone());
+      }
+    });
+
+    graph
 
   }
 
@@ -91,29 +108,30 @@ impl Graph {
   /// This function takes in a type and returns if the type is a primitive type.
   /// It does this by checking to see if the type is contained in the set of elemental_types
   fn is_primative(my_type : &Type) -> bool {
-    // To implement this algorithm, we will need to check if my_type is con
+    // To implement this algorithm, we will need to check if my_type is contained in the elemental_types set.
+    todo!()
   }
 }
 
-#[derive(Debug)]
-struct Type {
-  name: String,
-  prop_type: HashMap<String, String>,
+#[derive(Debug, Clone,  PartialEq, Eq, std::hash::Hash)]
+struct Type<'a> {
+  name: &'a str,
+  prop_type: HashMap<&'a str, &'a str>,
 }
 
-impl Type {
+impl<'a>  Type<'a> {
 
-  fn new() -> Type {
+  fn new() -> Type<'a> {
     Type {
-      name: String::from(""),
-      prop_type: HashMap::<String, String>::new(),
+      name: "",
+      prop_type: HashMap::<&'a str, &'a str>::new(),
     }
   }
   /// This function doesn't check to see that the property is already inside the type.. This should conform to the rust standard
-  fn add_property(&mut self, property: &str, my_type: &str) {
+  fn add_property(&'a mut self, property: &str, my_type: &str) {
     self
       .prop_type
-      .insert(String::from(property), String::from(my_type));
+      .insert(&String::from(property), &String::from(my_type));
   }
 
   fn add_name(&mut self, name: &str) {
