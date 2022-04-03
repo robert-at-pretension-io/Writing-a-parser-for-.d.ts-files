@@ -252,6 +252,7 @@ name = "my-project"
 version = "0.1.0"
 dependencies = [
  "config",
+ "console",
  "dialoguer",
  "nom",
 ]
