@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::fs;
 use std::io;
+use config::Config;
 
 use nom::{
   branch::alt,
@@ -21,34 +22,33 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 fn main() {
-  // get initial file name from the terminal argument
-  let args: Vec<String> = std::env::args().collect();
-  let mut prearranged_filename = args.get(1);
 
-  println!("This folder has the following files: ");
-  let paths = fs::read_dir("./").unwrap();
+  // Read in the configuration from config.json
+  let config = Config::builder().add_source(config::File::with_name("./src/config.json")).build().unwrap();
+  let hash_config = config.try_deserialize::<HashMap<String, String>>().unwrap();
 
-  for path in paths {
-    println!("Name: {}", path.unwrap().path().display())
+  // print out the keys and values in hash_config
+  println!("The following values are set up in the config file:");
+  for (key, value) in hash_config.iter() {
+    println!("'{}' : '{}'", key, value);
   }
 
-  loop {
-    if prearranged_filename.is_none() {
-      println!("\nEnter a filename (or type exit to quit):");
-      let mut filename = String::new();
-      io::stdin()
-        .read_line(&mut filename)
-        .expect("failed to readline");
-      filename = filename.trim_end().to_string().clone();
 
-      if filename.contains("exit") {
-        break;
-      }
+  // println!("This folder has the following files: ");
+  // let paths = fs::read_dir("./").unwrap();
+
+  // for path in paths {
+  //   println!("Name: {}", path.unwrap().path().display())
+  // }
+
+    if let Some(filename) = hash_config.get("default_parse_file") {
       let g = Graph::init(filename.clone().as_str());
-    } else {
-      prearranged_filename = None; // we don't want to read the same file again
+      println!("{:?}", g);
     }
-  }
+
+
+
+  
 }
 
 #[derive(Debug, Clone)]
@@ -78,7 +78,7 @@ impl Graph {
     };
 
     // we then iterate through the types and add them to the graph.
-    for type_ in types.clone() {
+    for type_ in types {
       if Self::is_primative(&type_) {
         graph.primative_types.insert(type_.clone());
       } else {
@@ -101,11 +101,12 @@ impl Graph {
   /// It does this by checking to see if the type is contained in the set of elemental_types
   fn is_primative(my_type: &Type) -> bool {
     // To implement this algorithm, we will need to check if my_type is contained in the elemental_types set.
-    todo!()
+    // todo!()
+    true
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Eq)]
 struct Type {
   name: String,
   prop_type: HashMap<String, String>,
@@ -114,6 +115,12 @@ struct Type {
 impl std::hash::Hash for Type {
   fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
     self.name.hash(state);
+  }
+}
+
+impl PartialEq for Type {
+  fn eq(&self, other: &Self) -> bool {
+    self.name == other.name
   }
 }
 

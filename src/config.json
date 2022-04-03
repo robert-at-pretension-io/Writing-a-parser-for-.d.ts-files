@@ -1,0 +1,3 @@
+{
+    "default_parse_file" : "./src/type_declaration.d.ts"
+}
