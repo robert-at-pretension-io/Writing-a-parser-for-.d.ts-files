@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use console::{Term, style};
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect, Select};
+use dialoguer::{theme::ColorfulTheme, MultiSelect};
 
 fn main() {
     // Read in the configuration from config.json
@@ -35,8 +35,8 @@ fn main() {
 
 
     // Clear out the terminal.
-    term.clear_screen();
-    term.write_line("-----------Welcome!-----------\n");
+    term.clear_screen().unwrap();
+    term.write_line("-----------Welcome!-----------\n").unwrap();
 
     // print out the keys and values in hash_config
     println!("The following values are set up in the config file:");
@@ -44,21 +44,44 @@ fn main() {
         println!("'{}' : '{}'", key, value);
     }
 
-    term.write_line("\n-----------/Welcome!-----------\n");
+    term.write_line("\n-----------/Welcome!-----------\n").unwrap();
 
 
     let default_parse_option_text = format!("Parse the default file: ({})", style(hash_config.get("default_parse_file").unwrap()).cyan().bold().italic());
     let default_parse_option_function = Box::new(
-      || {
-        println!("hey from default parse option box!");
+      |filename : String| {
+        let g = Graph::init(filename.as_str());
+        println!("{:?}", g);
       }
     );
 
-    let functional_choices : Vec<(String, Box<dyn Fn()>)> = vec![
-        (default_parse_option_text.clone(), default_parse_option_function.clone()),
-        (default_parse_option_text.clone(), default_parse_option_function.clone()),
-        (default_parse_option_text.clone(), default_parse_option_function.clone()),
+    // list out the files in the current directory
+    let mut files = fs::read_dir("./src/").unwrap();
+    // create a list of options for the user to select from based on the files in the directory
+    let mut options = Vec::new();
+    let mut option_functions = Vec::new();
+    while let Some(file) = files.next() {
+        let file = file.unwrap();
+        let file_name = file.file_name().into_string().unwrap();
+        if file_name.ends_with(".d.ts") {
+            options.push(format!("Choose this file: ({})", style(file_name).cyan().bold().italic()));
+            option_functions.push(Box::new(
+              |filename : String| {
+                let g = Graph::init(filename.as_str());
+                println!("{:?}", g);
+              }
+            ));
+        }
+    }
 
+
+
+    let choose_file_option_text = format!("Choose a file to parse: ({})", style(hash_config.get("default_parse_file").unwrap()).cyan().bold().italic());
+
+    type OptionFunction = Box<dyn Fn(String)>;
+
+    let functional_choices : Vec<(String, OptionFunction)> = vec![
+        (default_parse_option_text, default_parse_option_function),
     ];
 
     // We do this just to guarantee that there will in fact be a paired function to the selected choice!
@@ -73,14 +96,14 @@ fn main() {
             
 
         // Clear out the terminal.
-        term.clear_screen();
+        term.clear_screen().unwrap();
 
         match result {
             Ok(maybe_vector_of_choices) => match maybe_vector_of_choices {
                 Some(vector_of_choices) => {
                     for index_choice in vector_of_choices.clone() {
                         // println!("You selected: {}", functional_choices[index_choice]);
-                        functional_choices[index_choice].1();
+                        functional_choices[index_choice].1(hash_config.get("default_parse_file").unwrap().to_string());
                     }
                     if vector_of_choices.is_empty() {
                         println!("You didn't select anything!");
@@ -152,6 +175,7 @@ impl Graph {
         //   }
         // }
 
+        // passing the object back to the caller ALSO passes ownership of the object... That makes sense!
         graph
     }
 
@@ -190,10 +214,7 @@ impl Type {
         }
     }
 
-    /// This function takes in a vector of (property, type) and adds them to the type.
-    fn add_properties(&mut self, properties: HashMap<String, String>) {
-        self.prop_type = properties;
-    }
+
 
     fn add_name(&mut self, name: &str) {
         self.name = String::from(name);
@@ -245,7 +266,9 @@ fn label_identifier(input: &str) -> IResult<&str, &str> {
     Ok((rest, m))
 }
 
+
 fn interface_block(input: &str) -> IResult<&str, Type> {
+  
     let result: IResult<&str, (&str, Vec<(&str, &str, &str, Option<&str>)>)> = preceded(
         ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
         tuple((
