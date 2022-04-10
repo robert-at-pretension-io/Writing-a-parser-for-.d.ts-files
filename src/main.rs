@@ -25,12 +25,9 @@ use dialoguer::{theme::ColorfulTheme, MultiSelect};
 
 fn main() {
     // Read in the configuration from config.json
-    let config = Config::builder()
-        .add_source(config::File::with_name("./src/config.json"))
-        .build()
-        .unwrap();
-    let hash_config = config.try_deserialize::<HashMap<String, String>>().unwrap();
+    let hash_config = config_as_hash();
 
+    // Get a some nice tools for manipulating the terminal
     let term = Term::stdout();
 
 
@@ -130,6 +127,15 @@ fn main() {
     //   let g = Graph::init(filename.clone().as_str());
     //   println!("{:?}", g);
     // }
+}
+
+fn config_as_hash() -> HashMap<String, String> {
+    let config = Config::builder()
+    .add_source(config::File::with_name("./src/config.json"))
+    .build()
+    .unwrap();
+let hash_config = config.try_deserialize::<HashMap<String, String>>().unwrap();
+hash_config
 }
 
 #[derive(Debug, Clone)]
