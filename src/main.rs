@@ -20,19 +20,26 @@ use nom::{
 use std::collections::HashMap;
 use std::fmt::Debug;
 
-use console::{Term, style};
+use console::{style, Term};
 use dialoguer::{theme::ColorfulTheme, MultiSelect};
+
+use std::process::Command;
 
 fn main() {
     // Read in the configuration from config.json
     let hash_config = config_as_hash();
 
+    check_that_correct_build_tools_are_on_system();
+
     // Get a some nice tools for manipulating the terminal
     let term = Term::stdout();
 
+    // try to compile file to wasm
+    let file_name = String::from("main.rs");
+    use_cargo_to_compile_file_to_wasm(file_name);
 
     // Clear out the terminal.
-    term.clear_screen().unwrap();
+    //term.clear_screen().unwrap();
     term.write_line("-----------Welcome!-----------\n").unwrap();
 
     // print out the keys and values in hash_config
@@ -41,16 +48,20 @@ fn main() {
         println!("'{}' : '{}'", key, value);
     }
 
-    term.write_line("\n-----------/Welcome!-----------\n").unwrap();
+    term.write_line("\n-----------/Welcome!-----------\n")
+        .unwrap();
 
-
-    let default_parse_option_text = format!("Parse the default file: ({})", style(hash_config.get("default_parse_file").unwrap()).cyan().bold().italic());
-    let default_parse_option_function = Box::new(
-      |filename : String| {
+    let default_parse_option_text = format!(
+        "Parse the default file: ({})",
+        style(hash_config.get("default_parse_file").unwrap())
+            .cyan()
+            .bold()
+            .italic()
+    );
+    let default_parse_option_function = Box::new(|filename: String| {
         let g = Graph::init(filename.as_str());
         println!("{:?}", g);
-      }
-    );
+    });
 
     // list out the files in the current directory
     let mut files = fs::read_dir("./src/").unwrap();
@@ -61,28 +72,35 @@ fn main() {
         let file = file.unwrap();
         let file_name = file.file_name().into_string().unwrap();
         if file_name.ends_with(".d.ts") {
-            options.push(format!("Choose this file: ({})", style(file_name).cyan().bold().italic()));
-            option_functions.push(Box::new(
-              |filename : String| {
+            options.push(format!(
+                "Choose this file: ({})",
+                style(file_name).cyan().bold().italic()
+            ));
+            option_functions.push(Box::new(|filename: String| {
                 let g = Graph::init(filename.as_str());
                 println!("{:?}", g);
-              }
-            ));
+            }));
         }
     }
 
-
-
-    let choose_file_option_text = format!("Choose a file to parse: ({})", style(hash_config.get("default_parse_file").unwrap()).cyan().bold().italic());
+    let choose_file_option_text = format!(
+        "Choose a file to parse: ({})",
+        style(hash_config.get("default_parse_file").unwrap())
+            .cyan()
+            .bold()
+            .italic()
+    );
 
     type OptionFunction = Box<dyn Fn(String)>;
 
-    let functional_choices : Vec<(String, OptionFunction)> = vec![
-        (default_parse_option_text, default_parse_option_function),
-    ];
+    let functional_choices: Vec<(String, OptionFunction)> =
+        vec![(default_parse_option_text, default_parse_option_function)];
 
     // We do this just to guarantee that there will in fact be a paired function to the selected choice!
-    let text_choices = functional_choices.iter().map(|(text, _)| text.to_string()).collect::<Vec<String>>();
+    let text_choices = functional_choices
+        .iter()
+        .map(|(text, _)| text.to_string())
+        .collect::<Vec<String>>();
 
     loop {
         let result = MultiSelect::with_theme(&ColorfulTheme::default())
@@ -90,17 +108,18 @@ fn main() {
             .defaults(&[true])
             .items(&text_choices)
             .interact_opt();
-            
 
         // Clear out the terminal.
-        term.clear_screen().unwrap();
+        //term.clear_screen().unwrap();
 
         match result {
             Ok(maybe_vector_of_choices) => match maybe_vector_of_choices {
                 Some(vector_of_choices) => {
                     for index_choice in vector_of_choices.clone() {
                         // println!("You selected: {}", functional_choices[index_choice]);
-                        functional_choices[index_choice].1(hash_config.get("default_parse_file").unwrap().to_string());
+                        functional_choices[index_choice].1(
+                            hash_config.get("default_parse_file").unwrap().to_string(),
+                        );
                     }
                     if vector_of_choices.is_empty() {
                         println!("You didn't select anything!");
@@ -131,11 +150,34 @@ fn main() {
 
 fn config_as_hash() -> HashMap<String, String> {
     let config = Config::builder()
-    .add_source(config::File::with_name("./src/config.json"))
-    .build()
-    .unwrap();
-let hash_config = config.try_deserialize::<HashMap<String, String>>().unwrap();
-hash_config
+        .add_source(config::File::with_name("./src/config.json"))
+        .build()
+        .unwrap();
+    let hash_config = config.try_deserialize::<HashMap<String, String>>().unwrap();
+    hash_config
+}
+
+fn check_that_correct_build_tools_are_on_system() {
+    //use rustup to get the wasm32-unknown-unknown toolchain
+    Command::new("rustup")
+        .arg("target")
+        .arg("add")
+        .arg("wasm32-unknown-unknown")
+        .output()
+        .expect("Couldn't launch the rustup command");
+}
+
+fn use_cargo_to_compile_file_to_wasm(file: String) {
+    let output = Command::new("cargo")
+        .arg("build")
+        .arg("--release")
+        .arg("--target=wasm32-unknown-unknown")
+        .output()
+        .expect("failed to execute process");
+
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
 }
 
 #[derive(Debug, Clone)]
@@ -220,8 +262,6 @@ impl Type {
         }
     }
 
-
-
     fn add_name(&mut self, name: &str) {
         self.name = String::from(name);
     }
@@ -272,9 +312,7 @@ fn label_identifier(input: &str) -> IResult<&str, &str> {
     Ok((rest, m))
 }
 
-
 fn interface_block(input: &str) -> IResult<&str, Type> {
-  
     let result: IResult<&str, (&str, Vec<(&str, &str, &str, Option<&str>)>)> = preceded(
         ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
         tuple((

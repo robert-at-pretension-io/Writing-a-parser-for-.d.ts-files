@@ -1,5 +1,16 @@
 # Immediate Project goals
 * Make a 'live' parsing editor that has watched test cases and a live editor that runs these tests against the current iteration of the code.
+## Towards this end, let's attempt to implement the following workflow:
+1. select a parser of interest to work on
+2. open the parser in a terminal-based editor
+3. select test cases
+4. modify parser
+5. compile parser to wasm
+6. open wasm file in WASMER runtime
+7. run the temporary parser against all available tests
+8. succiently report non-passing tests to the user
+9. repeat steps 4. through 8. until **a.** all tests pass OR **b.** User gives up.
+
 
 # Long Term Project goals
 * using these parsed types, functions from various projects, come up with a live two-way mapping between a graphic visualization and the code.
