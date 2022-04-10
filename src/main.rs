@@ -158,13 +158,36 @@ fn config_as_hash() -> HashMap<String, String> {
 }
 
 fn check_that_correct_build_tools_are_on_system() {
-    //use rustup to get the wasm32-unknown-unknown toolchain
-    Command::new("rustup")
+    let rust_target_triple = "wasm32-unknown-unknown";
+
+    let output = Command::new("rustup")
         .arg("target")
-        .arg("add")
-        .arg("wasm32-unknown-unknown")
+        .arg("list")
+        .arg("--installed")
         .output()
-        .expect("Couldn't launch the rustup command");
+        .expect("failed to execute process");
+
+    // check to see if the target is already installed seeing if the target triple is in the output
+
+    let output_string = String::from_utf8(output.clone().stdout).unwrap();
+    println!("status: {}", output.status);
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    if !output_string.contains(rust_target_triple) {
+        println!(
+            "You don't have the wasm target installed. Please run `rustup target add {}`",
+            rust_target_triple
+        );
+        // std::process::exit(1);
+
+        //use rustup to get the wasm32-unknown-unknown target
+        Command::new("rustup")
+            .arg("target")
+            .arg("add")
+            .arg("wasm32-unknown-unknown")
+            .output()
+            .expect("Couldn't launch the rustup command");
+    }
 }
 
 fn use_cargo_to_compile_file_to_wasm(file: String) {
