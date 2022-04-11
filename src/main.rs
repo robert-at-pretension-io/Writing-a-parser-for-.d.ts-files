@@ -1,6 +1,7 @@
 use config::Config;
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::Error};
 use std::fs;
+use std::path::Path;
 
 use nom::{
     branch::alt,
@@ -63,33 +64,6 @@ fn main() {
         println!("{:?}", g);
     });
 
-    // list out the files in the current directory
-    let mut files = fs::read_dir("./src/").unwrap();
-    // create a list of options for the user to select from based on the files in the directory
-    let mut options = Vec::new();
-    let mut option_functions = Vec::new();
-    while let Some(file) = files.next() {
-        let file = file.unwrap();
-        let file_name = file.file_name().into_string().unwrap();
-        if file_name.ends_with(".d.ts") {
-            options.push(format!(
-                "Choose this file: ({})",
-                style(file_name).cyan().bold().italic()
-            ));
-            option_functions.push(Box::new(|filename: String| {
-                let g = Graph::init(filename.as_str());
-                println!("{:?}", g);
-            }));
-        }
-    }
-
-    let choose_file_option_text = format!(
-        "Choose a file to parse: ({})",
-        style(hash_config.get("default_parse_file").unwrap())
-            .cyan()
-            .bold()
-            .italic()
-    );
 
     type OptionFunction = Box<dyn Fn(String)>;
 
@@ -190,17 +164,35 @@ fn check_that_correct_build_tools_are_on_system() {
     }
 }
 
-fn use_cargo_to_compile_file_to_wasm(file: String) {
+enum MyError {
+    CargoPathMissing(String),
+}
+
+
+fn use_cargo_to_compile_file_to_wasm(cargo_file_path: String) -> Result<(), MyError> {
+
+    // check that the cargo_file_path is a Cargo.toml file that exists
+    let cargo_file_path_as_string = cargo_file_path.clone();
+    let cargo_file_path_as_string_as_path = Path::new(&cargo_file_path_as_string);
+    if !cargo_file_path_as_string_as_path.exists() {
+        println!("The file {} does not exist", cargo_file_path_as_string);
+        return Err(MyError::CargoPathMissing(cargo_file_path_as_string));
+    }
+
     let output = Command::new("cargo")
         .arg("build")
         .arg("--release")
         .arg("--target=wasm32-unknown-unknown")
+        .arg("--manifest-path")
+        .arg(cargo_file_path)
         .output()
         .expect("failed to execute process");
 
     println!("status: {}", output.status);
     println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
     println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+
+    Ok(())
 }
 
 #[derive(Debug, Clone)]
