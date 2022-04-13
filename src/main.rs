@@ -1,7 +1,7 @@
 use config::Config;
 use std::{collections::HashSet, fmt::Error};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use nom::{
     branch::alt,
@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use console::{style, Term};
-use dialoguer::{theme::ColorfulTheme, MultiSelect};
+use dialoguer::{theme::ColorfulTheme, MultiSelect, Select};
 
 use std::process::Command;
 
@@ -30,14 +30,19 @@ fn main() {
     // Read in the configuration from config.json
     let hash_config = config_as_hash();
 
+    let current_path = std::env::current_dir().unwrap();
+
+    let term = Term::stdout();
+
+    choose_file_from_submenu(current_path, &term);
+
     check_that_correct_build_tools_are_on_system();
 
     // Get a some nice tools for manipulating the terminal
-    let term = Term::stdout();
 
     // try to compile file to wasm
-    let file_name = String::from("main.rs");
-    use_cargo_to_compile_file_to_wasm(file_name);
+    // let file_name = String::from("Cargo.toml");
+    // use_cargo_to_compile_file_to_wasm(file_name);
 
     // Clear out the terminal.
     //term.clear_screen().unwrap();
@@ -144,9 +149,9 @@ fn check_that_correct_build_tools_are_on_system() {
     // check to see if the target is already installed seeing if the target triple is in the output
 
     let output_string = String::from_utf8(output.clone().stdout).unwrap();
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+    // println!("status: {}", output.status);
+    // println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    // println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     if !output_string.contains(rust_target_triple) {
         println!(
             "You don't have the wasm target installed. Please run `rustup target add {}`",
@@ -164,8 +169,76 @@ fn check_that_correct_build_tools_are_on_system() {
     }
 }
 
+fn choose_file_from_submenu(current_path: PathBuf, term : &Term) -> Option<PathBuf> {
+
+    // if the current_path is a directory, return it as a the result
+    if !current_path.is_dir() {
+        return Some(current_path);
+    }
+
+    let initial_path = std::env::current_dir().unwrap();
+    println!("Current Path: {}", initial_path.display());
+    println!("To exit this menu, press esc. To select a file or subdirectory, press enter.");
+
+    
+    // save the files in a vector
+    let mut files = Vec::new();
+
+    //get parent directory
+    let parent_dir = current_path.parent().unwrap();
+
+    //add parent directory pathbuff to files
+    files.push(parent_dir.to_path_buf());
+
+    for entry in fs::read_dir(current_path).unwrap() {
+        let entry = entry.unwrap();
+        files.push(entry.path());
+    }
+
+    // provide these files as as choices in a menu
+    let mut choices = Vec::new();
+    
+
+    for file in &files {
+        choices.push(file.display().to_string());
+    }
+
+    
+    // loop until the user quits
+    loop {
+        // get the selected item
+        let selected = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Choose a file or directory:")
+        .default(0)
+        .items(&choices).interact().unwrap();
+
+        // check if the selected file, if so return the filename
+        if !files[selected].is_dir() {
+            // if it is, return the selected file
+            println!("You selected: {}", files[selected].display());
+            return Some(files[selected].clone());
+        } 
+
+        // clear the terminal
+        term.clear_screen().unwrap();
+
+            let result = choose_file_from_submenu(files[selected].clone(), term);
+            match result {
+                Some(path) => {
+                    return Some(path);
+                }
+                None => {
+                    return None;
+                }
+            }
+
+
+    }
+}
+
 enum MyError {
     CargoPathMissing(String),
+    ProgramDidntCompile(String)
 }
 
 
@@ -185,12 +258,30 @@ fn use_cargo_to_compile_file_to_wasm(cargo_file_path: String) -> Result<(), MyEr
         .arg("--target=wasm32-unknown-unknown")
         .arg("--manifest-path")
         .arg(cargo_file_path)
-        .output()
-        .expect("failed to execute process");
+        .output();
 
-    println!("status: {}", output.status);
-    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
+        match output {
+            Err(err) => {
+                println!("The following error occurred while compiling the program: {}", err);
+                return Err(MyError::ProgramDidntCompile(err.to_string()))
+            },
+            Ok(ok_output) => {
+                match ok_output.status.code() {
+                    Some(code) => {
+                        if code == 0 {
+                            // no errors!
+                            // println!("No errors!");
+                            return Ok(())
+                        }
+                    }
+                    None => {
+                        // not sure it can get here since the program will crash if there are errors... 
+                        println!("This will only show to the console if the program is terminated while the code is compiling");
+                    }
+                }
+            }
+        }
+
 
     Ok(())
 }
