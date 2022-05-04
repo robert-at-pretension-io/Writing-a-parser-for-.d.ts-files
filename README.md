@@ -10,6 +10,12 @@
     * succinct report non-passing tests
     * repeat
 
+## IMPLEMENTATION DETAILS
+* Use tokio for file watching
+* use pest to come up with grammars
+* use wasmer for the wasm runtime (for running the parser compiled to wasm on the tests)
+* the abstract syntax tree IS a graph. The names of the nodes should be the parts of the grammar -- the 'pairs'.
+
 
 # Long Term Project goals
 * using these parsed types, functions from various projects, come up with a live two-way mapping between a graphic visualization and the code.

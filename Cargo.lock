@@ -254,7 +254,6 @@ dependencies = [
  "config",
  "console",
  "dialoguer",
- "nom",
 ]
 
 [[package]]

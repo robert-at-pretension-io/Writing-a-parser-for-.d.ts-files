@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 //     IResult,
 // };
 use std::collections::HashMap;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use console::{style, Term};
 use dialoguer::{theme::ColorfulTheme, MultiSelect, Select};
@@ -38,17 +38,25 @@ fn main() {
 
     let pest_grammar_file = choose_file_from_submenu("Choose Pest File Parser File".to_string(), current_path, &term);
 
+    // using the pest_grammar_file, we can parse the parse_file. 
+    
+    //Any changes to the pest_grammar_file will be watched, recompiled with wasm and re-run against the test
+
     check_that_correct_build_tools_are_on_system();
 
-    // Get a some nice tools for manipulating the terminal
+    check_if_pest_grammar_file_changed(pest_grammar_file.clone());
 
+    // In order for this to work correctly, the configuration file should also be edit-able and readable by both files.
     // try to compile file to wasm
-    // let file_name = String::from("Cargo.toml");
-    // match use_cargo_to_compile_file_to_wasm(parse_file.to_str().unwrap().to_string()){
-    //     Ok(()) => {
-    //         // if compilation was successful, then we can run the file
+    match use_cargo_to_compile_file_to_wasm(parse_file.to_str().unwrap().to_string()){
+        Ok(()) => {
+            // if compilation was successful, then we can run the file
 
-    // }
+    }, 
+        Err(e) => {
+            println!("{:?}", e);
+        }
+    }
 
     // Clear out the terminal.
     //term.clear_screen().unwrap();
@@ -226,6 +234,8 @@ fn choose_file_from_submenu(message_prompt: String, current_path: PathBuf, term 
     
 }
 
+//derive display
+#[derive(Debug)]
 enum MyError {
     CargoPathMissing(String),
     ProgramDidntCompile(String)
