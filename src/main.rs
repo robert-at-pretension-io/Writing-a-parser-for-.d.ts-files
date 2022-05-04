@@ -1,23 +1,23 @@
 use config::Config;
-use std::{collections::HashSet, fmt::Error};
+use std::{collections::HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use nom::{
-    branch::alt,
-    // character::is_alphanumeric
-    bytes::complete::tag,
-    bytes::complete::take_until,
-    // see the "streaming/complete" paragraph lower for an explanation of these submodules
-    character::complete::{alpha1, alphanumeric1, multispace0},
-    combinator::opt,
-    combinator::recognize,
-    error::ParseError,
-    multi::{many0, many1},
-    sequence::delimited,
-    sequence::{pair, preceded, terminated, tuple},
-    IResult,
-};
+// use nom::{
+//     branch::alt,
+//     // character::is_alphanumeric
+//     // bytes::complete::tag,
+//     // bytes::complete::take_until,
+//     // see the "streaming/complete" paragraph lower for an explanation of these submodules
+//     character::complete::{alpha1, alphanumeric1, multispace0},
+//     // combinator::opt,
+//     // combinator::recognize,
+//     error::ParseError,
+//     // multi::{many0, many1},
+//     // sequence::delimited,
+//     // sequence::{pair, preceded, terminated, tuple},
+//     IResult,
+// };
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -34,7 +34,9 @@ fn main() {
 
     let term = Term::stdout();
 
-    choose_file_from_submenu(current_path, &term);
+    let parse_file = choose_file_from_submenu("Choose the file to parse, this is also known as a test file.".to_string(), current_path.clone(), &term).unwrap();
+
+    let pest_grammar_file = choose_file_from_submenu("Choose Pest File Parser File".to_string(), current_path, &term);
 
     check_that_correct_build_tools_are_on_system();
 
@@ -42,7 +44,11 @@ fn main() {
 
     // try to compile file to wasm
     // let file_name = String::from("Cargo.toml");
-    // use_cargo_to_compile_file_to_wasm(file_name);
+    // match use_cargo_to_compile_file_to_wasm(parse_file.to_str().unwrap().to_string()){
+    //     Ok(()) => {
+    //         // if compilation was successful, then we can run the file
+
+    // }
 
     // Clear out the terminal.
     //term.clear_screen().unwrap();
@@ -114,17 +120,7 @@ fn main() {
         }
     }
 
-    // println!("This folder has the following files: ");
-    // let paths = fs::read_dir("./").unwrap();
 
-    // for path in paths {
-    //   println!("Name: {}", path.unwrap().path().display())
-    // }
-
-    // if let Some(filename) = hash_config.get("default_parse_file") {
-    //   let g = Graph::init(filename.clone().as_str());
-    //   println!("{:?}", g);
-    // }
 }
 
 fn config_as_hash() -> HashMap<String, String> {
@@ -132,8 +128,7 @@ fn config_as_hash() -> HashMap<String, String> {
         .add_source(config::File::with_name("./src/config.json"))
         .build()
         .unwrap();
-    let hash_config = config.try_deserialize::<HashMap<String, String>>().unwrap();
-    hash_config
+    config.try_deserialize::<HashMap<String, String>>().unwrap()
 }
 
 fn check_that_correct_build_tools_are_on_system() {
@@ -148,7 +143,7 @@ fn check_that_correct_build_tools_are_on_system() {
 
     // check to see if the target is already installed seeing if the target triple is in the output
 
-    let output_string = String::from_utf8(output.clone().stdout).unwrap();
+    let output_string = String::from_utf8(output.stdout).unwrap();
     // println!("status: {}", output.status);
     // println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
     // println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
@@ -169,7 +164,9 @@ fn check_that_correct_build_tools_are_on_system() {
     }
 }
 
-fn choose_file_from_submenu(current_path: PathBuf, term : &Term) -> Option<PathBuf> {
+fn choose_file_from_submenu(message_prompt: String, current_path: PathBuf, term : &Term) -> Option<PathBuf> {
+
+    println!("{}",&message_prompt);
 
     // if the current_path is a directory, return it as a the result
     if !current_path.is_dir() {
@@ -204,8 +201,7 @@ fn choose_file_from_submenu(current_path: PathBuf, term : &Term) -> Option<PathB
     }
 
     
-    // loop until the user quits
-    loop {
+    
         // get the selected item
         let selected = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Choose a file or directory:")
@@ -222,18 +218,12 @@ fn choose_file_from_submenu(current_path: PathBuf, term : &Term) -> Option<PathB
         // clear the terminal
         term.clear_screen().unwrap();
 
-            let result = choose_file_from_submenu(files[selected].clone(), term);
-            match result {
-                Some(path) => {
-                    return Some(path);
-                }
-                None => {
-                    return None;
-                }
-            }
+            // instead of looping, we just do a recursive function call
+        choose_file_from_submenu(message_prompt, files[selected].clone(), term)
+            
 
 
-    }
+    
 }
 
 enum MyError {
@@ -299,11 +289,10 @@ impl Graph {
     fn init(filename: &str) -> Self {
         // we first read the contents of the file into a string which we will parse.
         let contents = fs::read_to_string(filename)
-            .expect("Unable to read file")
-            .to_owned();
+            .expect("Unable to read file");
 
         // parse the contents
-        let types = type_file(&contents);
+        // let types = type_file(&contents);
 
         let mut graph = Graph {
             edges: Vec::new(),
@@ -313,13 +302,13 @@ impl Graph {
         };
 
         // we then iterate through the types and add them to the graph.
-        for type_ in types {
-            if Self::is_primative(&type_) {
-                graph.primative_types.insert(type_.clone());
-            } else {
-                graph.composite_types.insert(type_.clone());
-            }
-        }
+        // for type_ in types {
+        //     if Self::is_primative(&type_) {
+        //         graph.primative_types.insert(type_.clone());
+        //     } else {
+        //         graph.composite_types.insert(type_.clone());
+        //     }
+        // }
 
         // we then iterate through the types and add the edges to the graph.
 
@@ -373,95 +362,95 @@ impl Type {
     }
 }
 
-fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
-    inner: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
-where
-    F: FnMut(&'a str) -> IResult<&'a str, O, E>,
-{
-    delimited(multispace0, inner, multispace0)
-}
-///Todo: look at imported types and recursively read those too
-fn type_file(file: &str) -> Vec<Type> {
-    let result = many0(
-        //hypothetically, the file could contain no interfaces or types
-        alt((
-            preceded(
-                take_until("interface"), //
-                interface_block,
-            ),
-            preceded(
-                take_until("type"), //
-                interface_block,
-            ),
-        )),
-    )(file);
+// fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
+//     inner: F,
+// ) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+// where
+//     F: FnMut(&'a str) -> IResult<&'a str, O, E>,
+// {
+//     delimited(multispace0, inner, multispace0)
+// }
+//Todo: look at imported types and recursively read those too
+// fn type_file(file: &str) -> Vec<Type> {
+//     let result = many0(
+//         //hypothetically, the file could contain no interfaces or types
+//         alt((
+//             preceded(
+//                 take_until("interface"), //
+//                 interface_block,
+//             ),
+//             preceded(
+//                 take_until("type"), //
+//                 interface_block,
+//             ),
+//         )),
+//     )(file);
 
-    // need to look inside result to make sure it is a success
-    match result {
-        Ok((_, types)) => {
-            // println!("{:?}", types);
-            types
-        }
-        Err(e) => {
-            println!("{:?}", e);
-            Vec::new()
-        }
-    }
-}
+//     // need to look inside result to make sure it is a success
+//     match result {
+//         Ok((_, types)) => {
+//             // println!("{:?}", types);
+//             types
+//         }
+//         Err(e) => {
+//             println!("{:?}", e);
+//             Vec::new()
+//         }
+//     }
+// }
 
-fn label_identifier(input: &str) -> IResult<&str, &str> {
-    let (rest, m) = recognize(pair(
-        alt((alpha1, tag("_"))),
-        many0(alt((alphanumeric1, tag("_")))),
-    ))(input)?;
-    Ok((rest, m))
-}
+// fn label_identifier(input: &str) -> IResult<&str, &str> {
+//     let (rest, m) = recognize(pair(
+//         alt((alpha1, tag("_"))),
+//         many0(alt((alphanumeric1, tag("_")))),
+//     ))(input)?;
+//     Ok((rest, m))
+// }
 
-fn interface_block(input: &str) -> IResult<&str, Type> {
-    let result: IResult<&str, (&str, Vec<(&str, &str, &str, Option<&str>)>)> = preceded(
-        ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
-        tuple((
-            // name of the type/interface
-            terminated(ws(alpha1), opt(ws(tag("=")))),
-            delimited(
-                ws(tag("{")),
-                many1(
-                    // there can of course be many properties with respective types
-                    tuple((
-                        ws(label_identifier), // property name
-                        tag(":"),
-                        ws(recognize(pair(alphanumeric1, opt(tag("[]"))))), // property type
-                        opt(tag(";")),
-                    )),
-                ),
-                ws(tag("}")),
-            ),
-        )),
-    )(input);
+// fn interface_block(input: &str) -> IResult<&str, Type> {
+//     let result: IResult<&str, (&str, Vec<(&str, &str, &str, Option<&str>)>)> = preceded(
+//         ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
+//         tuple((
+//             // name of the type/interface
+//             terminated(ws(alpha1), opt(ws(tag("=")))),
+//             delimited(
+//                 ws(tag("{")),
+//                 many1(
+//                     // there can of course be many properties with respective types
+//                     tuple((
+//                         ws(label_identifier), // property name
+//                         tag(":"),
+//                         ws(recognize(pair(alphanumeric1, opt(tag("[]"))))), // property type
+//                         opt(tag(";")),
+//                     )),
+//                 ),
+//                 ws(tag("}")),
+//             ),
+//         )),
+//     )(input);
 
-    let my_type: &mut Type = &mut Type::new();
+//     let my_type: &mut Type = &mut Type::new();
 
-    match result {
-        Ok(tupled) => {
-            let (rest, (name, prop_type_hash)) = tupled.clone();
-            my_type.add_name(name);
-            // get all the properties and their types
-            // grow two vectors by looping through prop_type_hash
-            let mut prop_names = Vec::<String>::new();
-            let mut prop_types = Vec::<String>::new();
-            for (prop, _, type_name, _) in prop_type_hash {
-                prop_names.push(prop.into());
-                prop_types.push(String::from(type_name));
-            }
+//     match result {
+//         Ok(tupled) => {
+//             let (rest, (name, prop_type_hash)) = tupled.clone();
+//             my_type.add_name(name);
+//             // get all the properties and their types
+//             // grow two vectors by looping through prop_type_hash
+//             let mut prop_names = Vec::<String>::new();
+//             let mut prop_types = Vec::<String>::new();
+//             for (prop, _, type_name, _) in prop_type_hash {
+//                 prop_names.push(prop.into());
+//                 prop_types.push(String::from(type_name));
+//             }
 
-            my_type.prop_type = prop_names.into_iter().zip(prop_types.into_iter()).collect();
+//             my_type.prop_type = prop_names.into_iter().zip(prop_types.into_iter()).collect();
 
-            Ok((rest, my_type.to_owned()))
-        }
-        Err(err) => {
-            println!("Awe shucks, we have an error: {:?}", err);
-            Err(err)
-        }
-    }
-}
+//             Ok((rest, my_type.to_owned()))
+//         }
+//         Err(err) => {
+//             println!("Awe shucks, we have an error: {:?}", err);
+//             Err(err)
+//         }
+//     }
+// }
