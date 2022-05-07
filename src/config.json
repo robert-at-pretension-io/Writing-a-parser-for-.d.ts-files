@@ -1,4 +1,6 @@
 {
     "default_parse_file" : "./src/type_declaration.d.ts",
+    "default_pest_file" : "../pest/default_parser.pest",
+    "default_ast_creator_file" : "../pest/src/default_ast_creator_file.rs",
     "default_parse_folder" : "./tests/"
 }

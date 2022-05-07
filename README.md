@@ -17,6 +17,7 @@
 * the abstract syntax tree IS a graph. The names of the nodes should be the parts of the grammar -- the 'pairs'.
 
 
+
 # Long Term Project goals
 * using these parsed types, functions from various projects, come up with a live two-way mapping between a graphic visualization and the code.
 
