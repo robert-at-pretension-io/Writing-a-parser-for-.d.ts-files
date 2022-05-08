@@ -1,13 +1,14 @@
 use config::Config;
 use std::collections::HashSet;
-use std::io::Read;
+use std::fs::File;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::{fs, string};
+use std::{fs};
 
-use std::time::{Duration, Instant};
+use std::time::{Duration};
 
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 use console::{style, Term};
 use dialoguer::{theme::ColorfulTheme, MultiSelect, Select};
@@ -23,21 +24,22 @@ async fn main() {
 
     let term = Term::stdout();
 
-    let parse_file = choose_file_from_submenu(
-        "Choose the file to parse, this is also known as a test file.".to_string(),
-        current_path.clone(),
-        &term,
-        &hash_config,
-        &"default_parse_file".to_string()
-    )
-    .unwrap();
+    // let parse_file = choose_file_from_submenu(
+    //     "Choose the file to parse, this is also known as a test file.".to_string(),
+    //     current_path.clone(),
+    //     &term,
+    //     &hash_config,
+    //     &"default_parse_file".to_string()
+    // )
+    // .unwrap();
 
+    // this is the .pest file? We need an absolute path, not relative since 
     let pest_grammar_file = choose_file_from_submenu(
         "Choose Pest File Parser File".to_string(),
         current_path,
         &term,
         &hash_config,
-        &"default_pest_grammar_file".to_string()
+        "default_pest_grammar_file"
     );
 
     // using the pest_grammar_file, we can parse the parse_file.
@@ -50,14 +52,8 @@ async fn main() {
         check_if_pest_grammar_file_changed(pest_grammar_file.clone(), Duration::from_secs(1)).await
     });
 
-    // In order for this to work correctly, the configuration file should also be edit-able and readable by both files.
-    // try to compile file to wasm
-
-    // Clear out the terminal.
-    //term.clear_screen().unwrap();
     term.write_line("-----------Welcome!-----------\n").unwrap();
 
-    // print out the keys and values in hash_config
     println!("The following values are set up in the config file:");
     for (key, value) in hash_config.iter() {
         println!("'{}' : '{}'", key, value);
@@ -96,14 +92,10 @@ async fn main() {
             .items(&text_choices)
             .interact_opt();
 
-        // Clear out the terminal.
-        //term.clear_screen().unwrap();
-
         match result {
             Ok(maybe_vector_of_choices) => match maybe_vector_of_choices {
                 Some(vector_of_choices) => {
                     for index_choice in vector_of_choices.clone() {
-                        // println!("You selected: {}", functional_choices[index_choice]);
                         functional_choices[index_choice].1(
                             hash_config.get("default_parse_file").unwrap().to_string(),
                         );
@@ -128,9 +120,6 @@ async fn check_if_pest_grammar_file_changed(
     check_every_duration: Duration,
 ) {
     use crc32fast::Hasher;
-
-    // every (check_every_duration) seconds read the checksum of the file and determine if it's different from the old checksum
-
     let mut old_checksum = 0;
 
     loop {
@@ -177,9 +166,6 @@ fn check_that_correct_build_tools_are_on_system() {
     // check to see if the target is already installed seeing if the target triple is in the output
 
     let output_string = String::from_utf8(output.stdout).unwrap();
-    // println!("status: {}", output.status);
-    // println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
-    // println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     if !output_string.contains(rust_target_triple) {
         println!(
             "You don't have the wasm target installed. Please run `rustup target add {}`",
@@ -208,7 +194,7 @@ fn choose_file_from_submenu(
     current_path: PathBuf,
     term: &Term,
     config: &HashMap<String, String>,
-    default_file_config_name: &String,
+    default_file_config_name: &str,
 ) -> Option<PathBuf> {
     // if the default_file_config_name is in the config, use that as the default file and return that as the file buffer without asking
     if config.contains_key(default_file_config_name) {
@@ -276,12 +262,6 @@ fn choose_file_from_submenu(
     )
 }
 
-//derive display
-#[derive(Debug)]
-enum MyError {
-    CargoPathMissing(String),
-    ProgramDidntCompile(String),
-}
 
 fn use_cargo_to_compile_file_to_wasm(cargo_file_path: String) {
     // check that the cargo_file_path is a Cargo.toml file that exists
@@ -289,7 +269,6 @@ fn use_cargo_to_compile_file_to_wasm(cargo_file_path: String) {
     let cargo_file_path_as_string_as_path = Path::new(&cargo_file_path_as_string);
     if !cargo_file_path_as_string_as_path.exists() {
         println!("The file {} does not exist", cargo_file_path_as_string);
-        // return Err(MyError::CargoPathMissing(cargo_file_path_as_string));
     }
 
     let output = Command::new("cargo")
@@ -315,6 +294,13 @@ fn use_cargo_to_compile_file_to_wasm(cargo_file_path: String) {
                         // no errors!
                         println!("No errors! Should be able to run the generated wasm file against the test files.");
                         // return Ok(())
+                    }
+                    else {
+                        println!("{}\nError code: {}\nError Message saved to file.", style("The program compiled with errors!").red(), code);
+
+                        // save the error message to a file
+                        let mut file = File::create("error_message.txt").unwrap();
+                        file.write_all(ok_output.stderr.as_ref()).unwrap();
                     }
                 }
                 None => {
@@ -410,96 +396,3 @@ impl Type {
         self.name = String::from(name);
     }
 }
-
-// fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
-//     inner: F,
-// ) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
-// where
-//     F: FnMut(&'a str) -> IResult<&'a str, O, E>,
-// {
-//     delimited(multispace0, inner, multispace0)
-// }
-//Todo: look at imported types and recursively read those too
-// fn type_file(file: &str) -> Vec<Type> {
-//     let result = many0(
-//         //hypothetically, the file could contain no interfaces or types
-//         alt((
-//             preceded(
-//                 take_until("interface"), //
-//                 interface_block,
-//             ),
-//             preceded(
-//                 take_until("type"), //
-//                 interface_block,
-//             ),
-//         )),
-//     )(file);
-
-//     // need to look inside result to make sure it is a success
-//     match result {
-//         Ok((_, types)) => {
-//             // println!("{:?}", types);
-//             types
-//         }
-//         Err(e) => {
-//             println!("{:?}", e);
-//             Vec::new()
-//         }
-//     }
-// }
-
-// fn label_identifier(input: &str) -> IResult<&str, &str> {
-//     let (rest, m) = recognize(pair(
-//         alt((alpha1, tag("_"))),
-//         many0(alt((alphanumeric1, tag("_")))),
-//     ))(input)?;
-//     Ok((rest, m))
-// }
-
-// fn interface_block(input: &str) -> IResult<&str, Type> {
-//     let result: IResult<&str, (&str, Vec<(&str, &str, &str, Option<&str>)>)> = preceded(
-//         ws(alt((tag("interface"), tag("type")))), // These typescript types can either be labeled with type or interface
-//         tuple((
-//             // name of the type/interface
-//             terminated(ws(alpha1), opt(ws(tag("=")))),
-//             delimited(
-//                 ws(tag("{")),
-//                 many1(
-//                     // there can of course be many properties with respective types
-//                     tuple((
-//                         ws(label_identifier), // property name
-//                         tag(":"),
-//                         ws(recognize(pair(alphanumeric1, opt(tag("[]"))))), // property type
-//                         opt(tag(";")),
-//                     )),
-//                 ),
-//                 ws(tag("}")),
-//             ),
-//         )),
-//     )(input);
-
-//     let my_type: &mut Type = &mut Type::new();
-
-//     match result {
-//         Ok(tupled) => {
-//             let (rest, (name, prop_type_hash)) = tupled.clone();
-//             my_type.add_name(name);
-//             // get all the properties and their types
-//             // grow two vectors by looping through prop_type_hash
-//             let mut prop_names = Vec::<String>::new();
-//             let mut prop_types = Vec::<String>::new();
-//             for (prop, _, type_name, _) in prop_type_hash {
-//                 prop_names.push(prop.into());
-//                 prop_types.push(String::from(type_name));
-//             }
-
-//             my_type.prop_type = prop_names.into_iter().zip(prop_types.into_iter()).collect();
-
-//             Ok((rest, my_type.to_owned()))
-//         }
-//         Err(err) => {
-//             println!("Awe shucks, we have an error: {:?}", err);
-//             Err(err)
-//         }
-//     }
-// }

@@ -16,7 +16,9 @@
 * use wasmer for the wasm runtime (for running the parser compiled to wasm on the tests)
 * the abstract syntax tree IS a graph. The names of the nodes should be the parts of the grammar -- the 'pairs'.
 
-
+## Need to decide:
+* Q: How will the grammar be transformed into an AST in a general way?
+* A: There will be another abstraction layer specifying how the various components of the grammar are displayed.
 
 # Long Term Project goals
 * using these parsed types, functions from various projects, come up with a live two-way mapping between a graphic visualization and the code.

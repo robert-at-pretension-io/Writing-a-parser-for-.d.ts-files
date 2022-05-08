@@ -46,7 +46,7 @@
 		"git config --global user.name 'Robert Elliot Pahel-Short'",
 		"git stash",
 		"git checkout master",
-		"git pull",
+		"git pull"
 	]
 	,
 
